@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS SAM template with a simple HTTP API endpoint and Kinesis integration
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  ProcessDataLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/process_data_lambda
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 30
+      Tracing: Active
+      Events:
+        PhoneSensorAPIPUTmobilesensordata:
+          Type: HttpApi
+          Properties:
+            Path: /mobile-sensor-data
+            Method: POST
+      Environment:
+        Variables:
+          DATASTREAM_STREAM_NAME: !Ref DataStream
+          DATASTREAM_STREAM_ARN: !GetAtt DataStream.Arn
+      Policies:
+        - KinesisCrudPolicy:
+            StreamName: !Ref DataStream
+        - KinesisStreamReadPolicy:
+            StreamName: !Ref DataStream
+        - S3FullAccessPolicy:
+            BucketName: smartphone-sensor-data
+
+  DataStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      StreamEncryption:
+        EncryptionType: KMS
+        KeyId: alias/aws/kinesis
+      StreamModeDetails:
+        StreamMode: ON_DEMAND
